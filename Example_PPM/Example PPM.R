@@ -104,3 +104,18 @@ for (v in set.0)
 pred.list[[v]]$v = 0*pred.list[[v]]$v
 }
 
+
+
+########## Fit Poisson point process model ##########
+
+#'as.formula creates the formula for the IPPM
+#'          ~ is the response 
+#'          paste(names(int.list)) lets all combinations run 
+int.form = as.formula(paste("~", paste(names(int.list), collapse = "+")))
+
+#' ppm fits a point process model to an observed point pattern
+#'        Q= describes the spatial model to be fitted
+#'        trend=describes the spatial trend of the model
+ft.int = ppm(Q, trend = as.formula(int.form), covariates = int.list)
+
+
