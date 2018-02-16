@@ -111,11 +111,35 @@ pred.list[[v]]$v = 0*pred.list[[v]]$v
 #'as.formula creates the formula for the IPPM
 #'          ~ is the response 
 #'          paste(names(int.list)) lets all combinations run 
-int.form = as.formula(paste("~", paste(names(int.list), collapse = "+")))
+int.form <-  as.formula(paste("~", paste(names(int.list), collapse = "+")))
 
 #' ppm fits a point process model to an observed point pattern
 #'        Q= describes the spatial model to be fitted
 #'        trend=describes the spatial trend of the model
-ft.int = ppm(Q, trend = as.formula(int.form), covariates = int.list)
+ft.int <-  ppm(Q, trend = as.formula(int.form), covariates = int.list)
 
 
+
+#Inference for coefficients and models section is having trouble with anova example, look at tomorrow#
+
+########## Fit Area Interaction Model ##########
+
+#' seq: generates a sequence from 2 through 10 creating values every 0.2
+rs <-  data.frame(seq(2, 10, 0.2))
+names(rs) <-  "r"
+
+#'Profilepl is used to determine the appropriate interaction radius for fitting an area interaction model
+#'         Maximizes the profile likelihood, profile pseudolikelihood, profile composite likelihood or AIC
+#' rs= sequence from 2-10
+#' AreaInter: creates an instance of the area interaction point process model which can then be fitted to point pattern data
+            
+plike <-  profilepl(rs, AreaInter, Q, trend = int.form, covariates = int.list)
+
+#' Fit area interaction model with suggested radius from above (2)
+ft.ai.2 = ppm(Q, trend = as.formula(int.form), covariates = int.list,
+              interaction = AreaInter(2))
+########## Maps of predicted intensity ##########
+pred.ai.2 = predict(ft.ai.2, covariates = pred.list, ngrid = c(ny, nx))
+pred.int = predict(ft.int, covariates = pred.list, ngrid = c(ny, nx))
+plot(pred.int) #Fig. 1 (left)
+plot(pred.ai.2) #Fig. 1 (right)
