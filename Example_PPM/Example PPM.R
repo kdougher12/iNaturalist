@@ -1,11 +1,34 @@
 library(spatstat)
 
 ############Setting up the study window##############
-#Contains x + y
+
+#'Contains 230 rows of data:
+#' x location
+#' y location
+#' AR? 
+#' D.All?
+#' D.main: Distance from main roads, in kilometers
+#' D.Urb: Distance from urban areas, in kilometers
+#' FC: The number of fires since 1943
+#'MXT: Annual maximum temperature, in degrees Celsius
+#'MNT: Annual minimum temperature, in degrees Celsius
+#'Rain: Annual rainfall, in meters 
 load("/Users/kdougherty8/Box/Github/iNaturalist/iNaturalist_Github/Example_PPM/Eucalyptus_sparsifolia_Atlas_2012.RData")
 
-#Contains quad
+
+
+#'Contains 8630092 quadrature points
+#'X location
+#'Y Location
+#'FC: The number of fires since 1943
+#'D.Main: Distance to the nearest main road, in kilometers 
+#'D.Urb: Distance to the nearest urban area, in kilometers 
+#'Rain: Annual rainfall, in meters
+#'MXT: Annual maximum temperature, in degrees Celsius
+#'MNT: Annual minimum temperature, in degrees Celsius
+#'Soil: A categorical soil covariate
 load("/Users/kdougherty8/Box/Github/iNaturalist/iNaturalist_Github/Example_PPM/Quad100m.RData")
+
 
 #Sorts quad x + y values low to high
 ux <- sort(unique(quad$X))
