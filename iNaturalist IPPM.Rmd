@@ -1,0 +1,140 @@
+---
+title: "iNaturalist IPPM"
+author: "Kyle Dougherty"
+date: "2/20/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#' Load necessary packages
+library(raster)
+library(sp)
+library(rgdal)
+library(rgeos)
+library(dplyr)
+```
+
+```{r}
+# Load NLCD 2011 raster and Census Tract shapefile
+
+# Load 2011 NLCD raster 
+#   *Note that raster was reprojected to WGS 84 Zone 14N in QGIS before loading
+NLCD <- raster("/Users/kdougherty8/Documents/Working Documents from Box/NLCD_2011_Projected.tif")
+
+# Look at details of NLCD:
+#    Dimensions: size of file in pixels (nrow, ncol, ncells)
+#    Resolution: size of each pixel
+#    Extent: spatial extent of the raster
+#    Coord. Ref.: the coordinate reference system string for the raster
+NLCD
+
+# Create a new projection for UTM zone 14
+UTM_Projection <- "+proj=utm 
+                   +zone=14 
+                   +datum=WGS84 
+                   +units=m 
+                   +no_defs 
+                   +ellps=WGS84 
+                   +towgs84=0,0,0"
+
+# Load Lancaster County Census Tracts shapefile,
+#    *Note that file path should only go to folder containing shapfile and the shapefile name should then be used for layer argument
+
+Lancaster_County_Census_Tracts <- readOGR("/Users/kdougherty8/Documents/Working Documents from Box/Lancaster County Census Tracts", 
+                                          layer = "Lancaster County Census Tracts")
+
+# Crop NLCD raster to extent of Lancaster County
+Lancaster_County_NLCD <- crop(NLCD, 
+                              extent(Lancaster_County_Census_Tracts))
+```
+
+```{r}
+# Load iNaturalist fox observations 
+#    *Note: Some observations do not have coordinates included, use na.omit to remove them
+iNaturalist_Observations <- read.csv("/Users/kdougherty8/Documents/Working Documents from Box/observations-26772.csv") %>% 
+                                      na.omit()
+
+# Convert Observations to a spatial object
+coordinates(iNaturalist_Observations) <- ~longitude+latitude 
+
+#Add a coordinate reference system for the original coordinates from iNaturalist
+proj4string(iNaturalist_Observations) <- CRS("+proj=longlat 
+                                              +ellps=WGS84 
+                                              +datum=WGS84")
+
+#Project observations to UTM 
+iNaturalist_Observations <- spTransform(iNaturalist_Observations, 
+                                        CRS(UTM_Projection))
+
+```
+
+```{r}
+# Create buffer of 1 km around each observation
+Buffer_1k <- gBuffer(iNaturalist_Observations, 
+                     byid = TRUE, #Must be "TRUE" so that each observation is buffered
+                     width = 1000)
+```
+
+```{r}
+# Map Lancaster_County_NLCD and fox observations with buffers 
+#     *Note: Need to run this entire chunk or it add = TRUE will produce an error
+plot(Lancaster_County_NLCD)
+
+plot(Buffer_1k, 
+     col = "blue", 
+     add = TRUE) #Add = TRUE adds plot to previous plot
+
+plot(iNaturalist_Observations, 
+     pch=16,
+     col="red", 
+     add=TRUE)
+```
+
+```{r}
+#'Extract land cover under buffers
+Landcover <- extract(NLCD, 
+                     Buffer_1k, 
+                     weights = TRUE, 
+                     normalizeWeights = FALSE, #weights = TRUE and normalizeWeights = FALSE gives the approximate fraction of each cell that is covered by the buffer
+                     df = TRUE) #df = TRUE returns results as a dataframe with first column being a sequential ID
+```
+
+```{r}
+# Calculate Area for each row in dataframe using NLCD Resolution
+Landcover$Area <- (30.15922^2)*Landcover$weight
+
+# Group by ID and Land Class then Summarise to get area of each land class within buffer 
+Landcover <- Landcover %>%
+  group_by(ID, NLCD_2011_Projected) %>%
+  summarise(Area_Meters = sum(Area))
+
+# Group by ID and calculate total area of each buffer and percent of each class
+Landcover<- Landcover %>% 
+  group_by(ID) %>% 
+  mutate(Total_Area = sum(Area_Meters)) %>%
+  mutate(Percent = Area_Meters/Total_Area)
+
+```
+
+
+
+
+
+
+    
+
+
+### Random Quadrature Points ###
+
+#'Randomly generate 1,000 points in Lancaster County
+quad_points <- spsample(Lancaster_County_Census_Tracts, 1000, type = "random")
+
+plot(NLCD)
+plot(quad_points,
+     pch=16, 
+     col="blue", 
+     add=TRUE)
