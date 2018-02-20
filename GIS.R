@@ -1,11 +1,15 @@
 library(raster)
 library(sp)
 library(rgdal)
+library(rgeos)
+library(data.table)
+library(dplyr)
 
 ### Start with NLCD raster and crop down to the size of lancaster county ###
 
-# Load 2011 NLCD raster
-NLCD <- raster("/Users/kdougherty8/Documents/Working Documents from Box/NLCD_2011.tif")
+#' Load 2011 NLCD raster 
+#'      Reproject to WGS84 Zone 14N in QGIS before loading
+NLCD <- raster("/Users/kdougherty8/Documents/Working Documents from Box/NLCD_2011_Projected.tif")
 
 #' Dimensions: size of file in pixels (nrow, ncol, ncells)
 #' Resolution: size of each pixel
@@ -14,13 +18,7 @@ NLCD <- raster("/Users/kdougherty8/Documents/Working Documents from Box/NLCD_201
 NLCD
 
 # Create a new projection for UTM zone 14
-newprojection <- "+proj=utm +zone=14 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"
-
-# Reproject NLCD with to UTM zone 14
-NLCD <- projectRaster(NLCD, crs = newprojection)
-
-#Verify that reprojection was successful
-NLCD
+UTM_Projection <- "+proj=utm +zone=14 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"
 
 #'Read Lancaster County Census Tracts shapefile,
 #'      Note that in dsn argument only go to folder that contains shapefile
@@ -46,10 +44,43 @@ coordinates(iNaturalist_Observations) <- ~longitude+latitude
 #Add a coordinate reference system for the original coordinates from iNaturalist
 proj4string(iNaturalist_Observations) <- CRS("+proj=longlat +ellps=WGS84 +datum=WGS84")
 
-#Project observations to UTM using newprojection
-iNaturalist_Observations <- spTransform(iNaturalist_Observations, CRS(newprojection))
+#Project observations to UTM 
+iNaturalist_Observations <- spTransform(iNaturalist_Observations, 
+                                        CRS(UTM_Projection))
+
+#'Create buffer of 1 km around each observation
+#'         Note that byid must = TRUE so that each observation is buffered
+Buffer_1k <- gBuffer(iNaturalist_Observations, 
+                     byid = TRUE, 
+                     width = 1000)
 
 #' Plot NLCD
-#'    Add inaturalist observations to NLCD using the add argument
+#'    Add inaturalist observations and buffers to NLCD using the add argument
 plot(NLCD)
-plot(iNaturalist_Observations, pch=16, col="red", add=TRUE)
+plot(Buffer_1k, 
+     col = "blue", 
+     add = TRUE)
+plot(iNaturalist_Observations, 
+     pch=16, 
+     col="red", 
+     add=TRUE)
+
+
+#'Extract land cover under buffers
+#'        weights=TRUE and normalizeWeights=False gives the approximate fraction of each cell that is covered by the polygon
+#'        df=TRUE results are returned as a dataframe and first colum is a sequential ID
+Landcover <- extract(NLCD, 
+                     Buffer_1k, 
+                     weights = TRUE, 
+                     normalizeWeights=FALSE, 
+                     df=TRUE)
+
+#' Calculate Area for each row in dataframe
+Landcover$Area <- (30.15922^2)*Landcover$weight
+
+
+
+
+
+
+
