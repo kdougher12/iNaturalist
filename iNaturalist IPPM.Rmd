@@ -74,7 +74,7 @@ iNaturalist_Observations <- spTransform(iNaturalist_Observations,
 
 ```{r}
 # Create buffer of 1 km around each observation
-Buffer_1k <- gBuffer(iNaturalist_Observations, 
+iNaturalist_Buffer <- gBuffer(iNaturalist_Observations, 
                      byid = TRUE, #Must be "TRUE" so that each observation is buffered
                      width = 1000)
 ```
@@ -84,7 +84,7 @@ Buffer_1k <- gBuffer(iNaturalist_Observations,
 #     *Note: Need to run this entire chunk or it add = TRUE will produce an error
 plot(Lancaster_County_NLCD)
 
-plot(Buffer_1k, 
+plot(iNaturalist_Buffer, 
      col = "blue", 
      add = TRUE) #Add = TRUE adds plot to previous plot
 
@@ -96,45 +96,74 @@ plot(iNaturalist_Observations,
 
 ```{r}
 #'Extract land cover under buffers
-Landcover <- extract(NLCD, 
-                     Buffer_1k, 
-                     weights = TRUE, 
-                     normalizeWeights = FALSE, #weights = TRUE and normalizeWeights = FALSE gives the approximate fraction of each cell that is covered by the buffer
-                     df = TRUE) #df = TRUE returns results as a dataframe with first column being a sequential ID
+iNaturalist_Landcover <- extract(NLCD, 
+                            iNaturalist_Buffer, 
+                            weights = TRUE, 
+                            normalizeWeights = FALSE, #weights and normalizeWeights gives the approximate fraction of each cell that is covered by the buffer
+                            df = TRUE) #df = TRUE returns results as a dataframe with first column being a sequential ID
 ```
 
 ```{r}
 # Calculate Area for each row in dataframe using NLCD Resolution
-Landcover$Area <- (30.15922^2)*Landcover$weight
+iNaturalist_Landcover$Area <- (30.15922^2)*iNaturalist_Landcover$weight
 
 # Group by ID and Land Class then Summarise to get area of each land class within buffer 
-Landcover <- Landcover %>%
-  group_by(ID, NLCD_2011_Projected) %>%
-  summarise(Area_Meters = sum(Area))
+iNaturalist_Landcover <- iNaturalist_Landcover %>%
+                            group_by(ID, NLCD_2011_Projected) %>%
+                            summarise(Area_Meters = sum(Area))
 
 # Group by ID and calculate total area of each buffer and percent of each class
-Landcover<- Landcover %>% 
-  group_by(ID) %>% 
-  mutate(Total_Area = sum(Area_Meters)) %>%
-  mutate(Percent = Area_Meters/Total_Area)
-
+iNaturalist_Landcover<- iNaturalist_Landcover %>% 
+                            group_by(ID) %>% 
+                            mutate(Total_Area = sum(Area_Meters)) %>%
+                            mutate(Percent = Area_Meters/Total_Area)
 ```
 
+```{r}
+# Random Quadrature Points
 
+#Randomly generate 1,000 points in Lancaster County
+Quad_Points <- spsample(Lancaster_County_Census_Tracts, 
+                        1000, 
+                        type = "random")
 
+Quad_Buffer <- gBuffer(Quad_Points, 
+                     byid = TRUE, #Must be "TRUE" so that each observation is buffered
+                     width = 1000)
 
+plot(Lancaster_County_NLCD)
+plot(Quad_Buffer,
+     col = "red",
+     add = TRUE)
+plot(Quad_Points,
+     pch = 16, 
+     col = "blue", 
+     add = TRUE)
+```
 
+```{r}
+Quad_Landcover <- extract(NLCD, 
+                     Quad_Buffer, 
+                     weights = TRUE, 
+                     normalizeWeights = FALSE, 
+                     df = TRUE) 
 
-    
+Quad_Landcover$Area <- (30.15922^2) * Quad_Landcover$weight
 
+Quad_Landcover <- Quad_Landcover %>%
+                      group_by(ID, NLCD_2011_Projected) %>%
+                      summarise(Area_Meters = sum(Area))
 
-### Random Quadrature Points ###
+Quad_Landcover<- Quad_Landcover %>% 
+                           group_by(ID) %>% 
+                           mutate(Total_Area = sum(Area_Meters)) %>%
+                           mutate(Percent = Area_Meters/Total_Area)
 
-#'Randomly generate 1,000 points in Lancaster County
-quad_points <- spsample(Lancaster_County_Census_Tracts, 1000, type = "random")
+#Run Extract with Lancaster_County_NLCD to make sure that it is giving the same output. 
+```
 
-plot(NLCD)
-plot(quad_points,
-     pch=16, 
-     col="blue", 
-     add=TRUE)
+```{r}
+#Save environment as .RData so it can be loaded without running everything
+save.image(file = "iNaturalist_Data.RData")
+```
+
