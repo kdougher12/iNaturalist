@@ -78,9 +78,10 @@ Landcover <- extract(NLCD,
 #' Calculate Area for each row in dataframe
 Landcover$Area <- (30.15922^2)*Landcover$weight
 
-
-
-
-
+#' Group by ID and Land Class
+#'       Summarise
+Area <- Landcover %>%
+  group_by(ID, NLCD_2011_Projected) %>%
+  summarise(sum = sum(Area))
 
 
